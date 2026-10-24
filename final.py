@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Final Görevlendirme Arama", layout="wide")
+st.set_page_config(page_title="Sınav Görevlendirme Arama", layout="wide")
 
-st.title("📗 Final Görevlendirme Arama Sistemi")
+st.title("📗 Sınav Görevlendirme Arama Sistemi")
 st.caption("⚠️ Bu sistem demo amaçlıdır. Lütfen görevlendirme bilgilerinizi resmi listelerden kontrol ediniz.")
 
 name = st.text_input("Aranan İsim-Soyisim:")
@@ -12,7 +12,7 @@ search_button = st.button("🔍 Ara", use_container_width=True)
 
 # Dosya yollarını dinamik olarak belirle
 base_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else '.'
-current_file = os.path.join(base_dir, "25-26-Bahar-Final-OİS.xlsx")
+current_file = os.path.join(base_dir, "2026-2027-guz-vize.xlsx")
 
 @st.cache_data
 def load_excel(path):
@@ -30,7 +30,7 @@ try:
     df_current = load_excel(current_file)
 except Exception as e:
     st.error(f"Veri dosyası yüklenemedi: {e}")
-    st.info("Lütfen depoda 25-26_Bahar_Vize_2.xlsx dosyasının bulunduğunu kontrol edin.")
+    st.info("Lütfen depoda 2026-2027-guz-vize.xlsx dosyasının bulunduğunu kontrol edin.")
     st.stop()
 
 def normalize_turkish(text):
@@ -61,7 +61,7 @@ if name and name.strip():
     result = search(df_current, name).copy()
 
     if result.empty:
-        st.info("Aranan isimle ilgili güncel dosyada bir final sınavı kaydı bulunamadı.")
+        st.info("Aranan isimle ilgili güncel dosyada bir sınav görevlendirme kaydı bulunamadı.")
     else:
         # Olası kolon isimleri
         date_cols = ["Tarih", "Date", "Sınav Tarihi", "Exam Date"]
@@ -163,7 +163,7 @@ if name and name.strip():
             
             # Toplam sınav sayısını hesapla
             total_exams = (takvim != "").sum().sum()
-            st.write(f"**Toplam {total_exams} adet final sınavı görevlendirmesi bulundu.**")
+            st.write(f"**Toplam {total_exams} adet sınav görevlendirmesi bulundu.**")
 
             # Takvim tablosunu renklendir ve genişlik ayarları yap
             styled_takvim = takvim.style\

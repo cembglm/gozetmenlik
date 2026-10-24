@@ -1,8 +1,8 @@
-# 📗 Final Gözetmenlik Arama Sistemi
+# 📗 Sınav Gözetmenlik Arama Sistemi
 
-Bahar 2025-2026 vize sınavı gözetmenlik görevlendirmelerini kolayca aramak için geliştirilmiş bir **Streamlit** uygulamasıdır.
+Sınav gözetmenlik görevlendirmelerini kolayca aramak için geliştirilmiş bir **Streamlit** uygulamasıdır.
 
-🔗 **Live Demo:** [Streamlit Cloud](https://2025-2026-final-gozetmenlik.streamlit.app/)
+🔗 **Live Demo:** [Streamlit Cloud](https://gozetmenlik.streamlit.app/)
 
 ## 🎯 Özellikler
 
@@ -15,6 +15,6 @@ Bahar 2025-2026 vize sınavı gözetmenlik görevlendirmelerini kolayca aramak i
 
 ## 📊 Veri Kaynağı
 
-- **Dosya**: `25-26_Bahar_Vize.xlsx`
-- **Sheet**: OİS Listesi
+- **Dosya**: `2026-2027-guz-vize.xlsx`
+- **Sheet**: Sayfa1
 - **Sütunlar**: Ders Kodu, Section, Sınav Tipi, Sınıf, Tarih, Başlangıç Saat, Bitiş Saat, Gözetmen 1-4
