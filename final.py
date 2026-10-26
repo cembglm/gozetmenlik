@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import unicodedata
 
 st.set_page_config(page_title="Sınav Görevlendirme Arama", layout="wide")
 
@@ -34,16 +35,10 @@ except Exception as e:
     st.stop()
 
 def normalize_turkish(text):
-    """Türkçe karakterleri normalize et (İ->i, Ş->s, Ğ->g vb.)"""
-    replacements = {
-        'ı': 'i', 'İ': 'i', 'ş': 's', 'Ş': 's',
-        'ğ': 'g', 'Ğ': 'g', 'ü': 'u', 'Ü': 'u',
-        'ö': 'o', 'Ö': 'o', 'ç': 'c', 'Ç': 'c'
-    }
-    text = str(text).lower()
-    for tr_char, en_char in replacements.items():
-        text = text.replace(tr_char, en_char)
-    return text
+    """Normalize case and Turkish/Latin accents for name searches."""
+    text = unicodedata.normalize("NFKD", str(text).casefold())
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return text.replace("ı", "i")
 
 def search(df, name):
     name_normalized = normalize_turkish(name.strip())
