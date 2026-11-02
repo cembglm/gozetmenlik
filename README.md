@@ -12,9 +12,3 @@ Sınav gözetmenlik görevlendirmelerini kolayca aramak için geliştirilmiş bi
 - 📊 **İstatistikler**: Toplam sınav sayısı, farklı ders, farklı gün bilgileri
 - 🔤 **Türkçe Karakter Desteği**: Ş, İ, Ç, Ğ, Ü, Ö karakterleri tam destek
 - 📱 **Responsive İnterfeys**: Bilgisayar ve mobil cihazlarda uyumlu
-
-## 📊 Veri Kaynağı
-
-- **Dosya**: `2026-2027-guz-vize.xlsx`
-- **Sheet**: Sayfa1
-- **Sütunlar**: Ders Kodu, Section, Sınav Tipi, Sınıf, Tarih, Başlangıç Saat, Bitiş Saat, Gözetmen 1-4
