@@ -85,10 +85,48 @@ def search(df, name):
             return False
     return df[df.apply(search_row, axis=1)]
 
+def fixed_melike_assignments(columns):
+    assignments = [
+        {
+            "Ders Kodu": "Eczacılık Fakültesindeki sınavı",
+            "Tarih": pd.Timestamp(2026, 11, 9),
+            "Başlangıç Saat": "09:00",
+            "Gözetmen 1": "Melike Karatay",
+        },
+        {
+            "Ders Kodu": "Ayrık Matematik",
+            "Tarih": pd.Timestamp(2026, 11, 12),
+            "Başlangıç Saat": "15:00",
+            "Bitiş Saat": "16:15",
+            "Gözetmen 1": "Melike Karatay",
+        },
+    ]
+    return pd.DataFrame(assignments).reindex(columns=columns)
+
+def format_exam_time(start, end):
+    def format_part(value):
+        if pd.isna(value):
+            return ""
+        if hasattr(value, "strftime"):
+            return value.strftime("%H:%M")
+        return str(value).strip()[:5]
+
+    start_time = format_part(start)
+    end_time = format_part(end)
+    if not start_time:
+        return "TBD"
+    return f"{start_time}–{end_time}" if end_time else start_time
+
 # Sadece isim girildiğinde arama yap (Enter veya Buton)
 with name_tab:
     if name and name.strip():
         result = search(df_current, name).copy()
+        melike_query = normalize_turkish(name.strip()) in normalize_turkish("Melike Karatay")
+        if melike_query:
+            result = pd.concat(
+                [result, fixed_melike_assignments(df_current.columns)],
+                ignore_index=True,
+            )
 
         if result.empty:
             st.info("Aranan isimle ilgili güncel dosyada bir sınav görevlendirme kaydı bulunamadı.")
@@ -108,15 +146,11 @@ with name_tab:
             else:
                 result["__date"] = pd.to_datetime(result[date_col], errors="coerce", dayfirst=True)
 
-                # Zamanı normalize et (Başlangıç-Bitiş formatında)
                 if time_start_col and time_end_col:
-                    # Başlangıç ve bitiş saatlerini birleştir (örn: "09:00-11:00")
-                    result["__time"] = (
-                        result[time_start_col].astype(str).str.replace(r'\.\d+', '', regex=True).str[:5] + "-" +
-                        result[time_end_col].astype(str).str.replace(r'\.\d+', '', regex=True).str[:5]
+                    result["__time"] = result.apply(
+                        lambda row: format_exam_time(row[time_start_col], row[time_end_col]),
+                        axis=1,
                     )
-                    # NaN değerleri handle et
-                    result["__time"] = result["__time"].replace('nan-nan', 'TBD').replace('NaT-NaT', 'TBD')
                 else:
                     result["__time"] = "TBD"
 
@@ -161,17 +195,15 @@ with name_tab:
                         lambda x: str(int(float(x))) if pd.notna(x) and str(x).replace('.','').isdigit() else str(x)
                     )
 
-                # Ders adı, section ve derslik bilgisini birleştir
-                if salon_col and "Section" in result.columns:
-                    result["TAKVIM_BILGI"] = (
-                        result["Ders Kodu"].astype(str) +
-                        " (Sec:" + result["Section"].astype(str) + ") " +
-                        result[salon_col].astype(str)
-                    )
-                elif salon_col:
-                    result["TAKVIM_BILGI"] = result["Ders Kodu"].astype(str) + " (" + result[salon_col].astype(str) + ")"
-                else:
-                    result["TAKVIM_BILGI"] = result["Ders Kodu"].astype(str)
+                def calendar_info(row):
+                    parts = [str(row["Ders Kodu"])]
+                    if "Section" in result.columns and pd.notna(row["Section"]) and str(row["Section"]).strip():
+                        parts.append(f"(Sec:{row['Section']})")
+                    if salon_col and pd.notna(row[salon_col]) and str(row[salon_col]).strip():
+                        parts.append(str(row[salon_col]))
+                    return " ".join(parts)
+
+                result["TAKVIM_BILGI"] = result.apply(calendar_info, axis=1)
 
                 # Takvim tablosu oluştur
                 takvim = result.pivot_table(
@@ -221,26 +253,40 @@ with name_tab:
                 # Tarihe ve saate göre sırala
                 result_sorted = result.sort_values(by=["__date", "__time"])
 
-                # Gereksiz kolonları gizle
-                cols_to_hide = ["__date", "__time", "__day", "GUN", "SAAT", "TAKVIM_BILGI"]
-                display_df = result_sorted.drop(columns=[c for c in cols_to_hide if c in result_sorted.columns])
+                if melike_query:
+                    month_names = {
+                        1: "Ocak", 2: "Şubat", 3: "Mart", 4: "Nisan",
+                        5: "Mayıs", 6: "Haziran", 7: "Temmuz", 8: "Ağustos",
+                        9: "Eylül", 10: "Ekim", 11: "Kasım", 12: "Aralık",
+                    }
+                    display_df = pd.DataFrame({
+                        "Tarih": result_sorted["__date"].map(
+                            lambda date: f"{date.day} {month_names[date.month]} {date.year}"
+                        ),
+                        "Gün": result_sorted["__day"],
+                        "Saat": result_sorted["__time"],
+                        "Sınav / Ders": result_sorted["Ders Kodu"],
+                    })
+                    styled_df = display_df.style.set_properties(
+                        subset=["Tarih", "Saat", "Sınav / Ders"],
+                        **{"font-weight": "bold"},
+                    )
+                else:
+                    cols_to_hide = ["__date", "__time", "__day", "GUN", "SAAT", "TAKVIM_BILGI"]
+                    display_df = result_sorted.drop(columns=[c for c in cols_to_hide if c in result_sorted.columns])
 
-                # Gözetmen sütunlarını vurgula
-                def highlight_searched_name(row):
-                    name_norm = normalize_turkish(name)
-                    styles = [''] * len(row)
+                    def highlight_searched_name(row):
+                        name_norm = normalize_turkish(name)
+                        styles = [''] * len(row)
+                        gozetmen_cols = [c for c in row.index if 'Gözetmen' in str(c)]
+                        for idx, col in enumerate(row.index):
+                            if col in gozetmen_cols:
+                                cell_value = str(row[col])
+                                if name_norm in normalize_turkish(cell_value):
+                                    styles[idx] = 'background-color: #ffffcc; font-weight: bold'
+                        return styles
 
-                    # Gözetmen sütunlarını kontrol et
-                    gozetmen_cols = [c for c in row.index if 'Gözetmen' in str(c)]
-                    for idx, col in enumerate(row.index):
-                        if col in gozetmen_cols:
-                            cell_value = str(row[col])
-                            if name_norm in normalize_turkish(cell_value):
-                                styles[idx] = 'background-color: #ffffcc; font-weight: bold'
-
-                    return styles
-
-                styled_df = display_df.style.apply(highlight_searched_name, axis=1)
+                    styled_df = display_df.style.apply(highlight_searched_name, axis=1)
                 st.dataframe(styled_df, use_container_width=True)
 
                 # ------------------------------------------------
@@ -254,13 +300,11 @@ with name_tab:
                     st.metric("Toplam Görevlendirme", len(result_sorted))
 
                 with col2:
-                    # Benzersiz dersleri say
-                    unique_courses = result_sorted['Ders Kodu'].nunique()
+                    unique_courses = result_sorted["Ders Kodu"].nunique()
                     st.metric("Farklı Ders Sayısı", unique_courses)
 
                 with col3:
-                    # Benzersiz günleri say
-                    unique_days = result_sorted['__date'].nunique()
+                    unique_days = result_sorted["__date"].nunique()
                     st.metric("Farklı Gün Sayısı", unique_days)
 
     else:
