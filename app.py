@@ -90,18 +90,18 @@ def fixed_melike_assignments(columns):
         {
             "Ders Kodu": "Eczacılık Fakültesindeki sınavı",
             "Tarih": pd.Timestamp(2026, 11, 9),
-            "Başlangıç Saat": "09:00",
+            "Başlangıç Saat": pd.Timestamp(2026, 11, 9, 9, 0).time(),
             "Gözetmen 1": "Melike Karatay",
         },
         {
             "Ders Kodu": "Ayrık Matematik",
             "Tarih": pd.Timestamp(2026, 11, 12),
-            "Başlangıç Saat": "15:00",
-            "Bitiş Saat": "16:15",
+            "Başlangıç Saat": pd.Timestamp(2026, 11, 12, 15, 0).time(),
+            "Bitiş Saat": pd.Timestamp(2026, 11, 12, 16, 15).time(),
             "Gözetmen 1": "Melike Karatay",
         },
     ]
-    return pd.DataFrame(assignments).reindex(columns=columns)
+    return pd.DataFrame(assignments, index=["Sabit 1", "Sabit 2"]).reindex(columns=columns)
 
 def format_exam_time(start, end):
     def format_part(value):
@@ -125,8 +125,8 @@ with name_tab:
         if melike_query:
             result = pd.concat(
                 [result, fixed_melike_assignments(df_current.columns)],
-                ignore_index=True,
             )
+            result.index = result.index.map(str)
 
         if result.empty:
             st.info("Aranan isimle ilgili güncel dosyada bir sınav görevlendirme kaydı bulunamadı.")
@@ -192,7 +192,7 @@ with name_tab:
                 # Section sütununu düzelt (1.0 -> 1)
                 if "Section" in result.columns:
                     result["Section"] = result["Section"].apply(
-                        lambda x: str(int(float(x))) if pd.notna(x) and str(x).replace('.','').isdigit() else str(x)
+                        lambda x: "" if pd.isna(x) else str(int(float(x))) if str(x).replace('.','').isdigit() else str(x)
                     )
 
                 def calendar_info(row):
@@ -254,39 +254,44 @@ with name_tab:
                 result_sorted = result.sort_values(by=["__date", "__time"])
 
                 if melike_query:
-                    month_names = {
-                        1: "Ocak", 2: "Şubat", 3: "Mart", 4: "Nisan",
-                        5: "Mayıs", 6: "Haziran", 7: "Temmuz", 8: "Ağustos",
-                        9: "Eylül", 10: "Ekim", 11: "Kasım", 12: "Aralık",
-                    }
-                    display_df = pd.DataFrame({
-                        "Tarih": result_sorted["__date"].map(
-                            lambda date: f"{date.day} {month_names[date.month]} {date.year}"
-                        ),
-                        "Gün": result_sorted["__day"],
-                        "Saat": result_sorted["__time"],
-                        "Sınav / Ders": result_sorted["Ders Kodu"],
-                    })
-                    styled_df = display_df.style.set_properties(
-                        subset=["Tarih", "Saat", "Sınav / Ders"],
-                        **{"font-weight": "bold"},
-                    )
+                    cols_to_hide = ["__date", "__time", "__day", "GUN", "SAAT", "TAKVIM_BILGI"]
+                    display_df = result_sorted.drop(columns=[c for c in cols_to_hide if c in result_sorted.columns]).copy()
+
+                    for column in date_cols:
+                        if column in display_df.columns:
+                            display_df[column] = pd.to_datetime(
+                                display_df[column], errors="coerce", dayfirst=True
+                            ).map(lambda value: value.strftime("%Y-%m-%d %H:%M:%S") if pd.notna(value) else "")
+
+                    for column in time_start_cols + time_end_cols:
+                        if column in display_df.columns:
+                            display_df[column] = display_df[column].map(
+                                lambda value: value.strftime("%H:%M:%S")
+                                if hasattr(value, "strftime")
+                                else f"{str(value).strip()}:00"
+                                if pd.notna(value) and len(str(value).strip()) == 5
+                                else str(value).strip()
+                                if pd.notna(value)
+                                else ""
+                            )
+
+                    display_df = display_df.astype(object).where(pd.notna(display_df), "")
                 else:
                     cols_to_hide = ["__date", "__time", "__day", "GUN", "SAAT", "TAKVIM_BILGI"]
                     display_df = result_sorted.drop(columns=[c for c in cols_to_hide if c in result_sorted.columns])
 
-                    def highlight_searched_name(row):
-                        name_norm = normalize_turkish(name)
-                        styles = [''] * len(row)
-                        gozetmen_cols = [c for c in row.index if 'Gözetmen' in str(c)]
-                        for idx, col in enumerate(row.index):
-                            if col in gozetmen_cols:
-                                cell_value = str(row[col])
-                                if name_norm in normalize_turkish(cell_value):
-                                    styles[idx] = 'background-color: #ffffcc; font-weight: bold'
-                        return styles
+                def highlight_searched_name(row):
+                    name_norm = normalize_turkish(name)
+                    styles = [''] * len(row)
+                    gozetmen_cols = [c for c in row.index if 'Gözetmen' in str(c)]
+                    for idx, col in enumerate(row.index):
+                        if col in gozetmen_cols:
+                            cell_value = str(row[col])
+                            if name_norm in normalize_turkish(cell_value):
+                                styles[idx] = 'background-color: #ffffcc; font-weight: bold'
+                    return styles
 
-                    styled_df = display_df.style.apply(highlight_searched_name, axis=1)
+                styled_df = display_df.style.apply(highlight_searched_name, axis=1)
                 st.dataframe(styled_df, use_container_width=True)
 
                 # ------------------------------------------------
