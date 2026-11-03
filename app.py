@@ -293,24 +293,5 @@ with name_tab:
 
                 styled_df = display_df.style.apply(highlight_searched_name, axis=1)
                 st.dataframe(styled_df, use_container_width=True)
-
-                # ------------------------------------------------
-                #  📊 İSTATİSTİKLER
-                # ------------------------------------------------
-                st.write("## 📊 İstatistikler")
-
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    st.metric("Toplam Görevlendirme", len(result_sorted))
-
-                with col2:
-                    unique_courses = result_sorted["Ders Kodu"].nunique()
-                    st.metric("Farklı Ders Sayısı", unique_courses)
-
-                with col3:
-                    unique_days = result_sorted["__date"].nunique()
-                    st.metric("Farklı Gün Sayısı", unique_days)
-
     else:
         st.info("👆 Lütfen aramak istediğiniz bilgiyi girin.")
